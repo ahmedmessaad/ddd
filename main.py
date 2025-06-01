@@ -1,80 +1,38 @@
-import time
+# check_site.py
 import requests
-from bs4 import BeautifulSoup
-import telegram
+import sys
 
-# ---------------------------
-# CONFIGURATION
-# ---------------------------
-FIRST_NUMBER = "282099018490"
-SECOND_NUMBER = "109991022018490007"
-URL = "https://minha.anem.dz/pre_inscription"
+target_url = "https://minha.anem.dz/pre_inscription"
 
-TELEGRAM_TOKEN = "7695653978:AAGjNDXcfjxW9xTJf8ZBWzg5SUZcV6mFIww"
-CHAT_ID = "1906111091"
+print(f"Attempting to check the status of: {target_url}")
 
-NO_DATE_TEXTS = [
-    "نعتذر منكم",  # Arabic
-    "Nous sommes désolés",  # French
-    "We are sorry"  # English (if available)
-]
+try:
+    # Make a GET request to the URL
+    response = requests.get(target_url, timeout=10) # 10-second timeout
 
-# ---------------------------
-# FUNCTION
-# ---------------------------
-def check_dates():
-    session = requests.Session()
-    
-    # Step 1: Access the initial page
-    response = session.get(URL)
-    if response.status_code != 200:
-        print("Failed to load page.")
-        return False
+    # Print the status code and reason
+    print(f"Status Code: {response.status_code}")
+    print(f"Status Reason: {response.reason}")
 
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    # Find hidden fields or tokens if needed
-    try:
-        csrf_token = soup.find('input', {'name': '_token'})['value']
-    except:
-        csrf_token = None
-
-    # Step 2: Submit the two numbers
-    payload = {
-        "_token": csrf_token,
-        "numero_nin": FIRST_NUMBER,
-        "numero_anem": SECOND_NUMBER,
-    }
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-    post_response = session.post(URL, data=payload, headers=headers)
-
-    if post_response.status_code != 200:
-        print("Failed to submit numbers.")
-        return False
-
-    time.sleep(10)  # Wait for popup simulation time
-
-    # Step 3: Access the second step page
-    soup = BeautifulSoup(post_response.text, 'html.parser')
-    page_text = soup.get_text()
-
-    # Step 4: Check if dates available
-    if any(word in page_text for word in NO_DATE_TEXTS):
-        print("No dates available.")
-        return False
+    # Check for success (2xx status codes)
+    if response.status_code >= 200 and response.status_code < 300:
+        print("Website visit SUCCESSFUL (status code 2xx).")
+    elif response.status_code >= 400 and response.status_code < 500:
+        print(f"Website visit FAILED (Client Error: {response.status_code}).")
+    elif response.status_code >= 500 and response.status_code < 600:
+        print(f"Website visit FAILED (Server Error: {response.status_code}).")
     else:
-        print("Dates available!")
-        send_alert()
-        return True
+        print("Website visit status is UNKNOWN or informational.")
 
-def send_alert():
-    bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    bot.send_message(
-        chat_id=CHAT_ID,
-        text="⚡ Good news! Dates are available! Go fast: https://minha.anem.dz/pre_inscription"
-    )
+    # Optional: print response time
+    print(f"Response Time: {response.elapsed.total_seconds()} seconds")
 
-if __name__ == "__main__":
-    check_dates()
+except requests.exceptions.Timeout:
+    print("Error: The request timed out after 10 seconds.")
+    sys.exit(1) # Indicate failure
+except requests.exceptions.ConnectionError:
+    print("Error: Could not connect to the website. Check URL or network.")
+    sys.exit(1) # Indicate failure
+except requests.exceptions.RequestException as e:
+    print(f"An unexpected error occurred during the request: {e}")
+    sys.exit(1) # Indicate failure
