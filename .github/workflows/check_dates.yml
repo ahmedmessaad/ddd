@@ -1,27 +1,26 @@
-name: Check Interview Dates
+# .github/workflows/check_website_status.yml
+name: Check Website Status
 
 on:
+  workflow_dispatch: # Allows manual triggering from GitHub Actions tab
   schedule:
-    - cron: "*/10 * * * *"  # Every 10 minutes
-  workflow_dispatch:  # Allow manual triggering
+    - cron: '0 0 * * *' # Runs daily at midnight UTC
 
 jobs:
-  build:
+  check_status:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.11
+        python-version: '3.x' # Use the latest Python 3 version
 
     - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
+      run: pip install requests
 
-    - name: Run the bot
-      run: |
-        python main.py
+    - name: Run website check script
+      run: python check_site.py
